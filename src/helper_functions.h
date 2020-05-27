@@ -253,7 +253,7 @@ inline bool read_landmark_data(std::string filename,
  * Calculates the multivariate Gaussian with the given mu and sigma 
  * at the given point (x, y) 
  */
-inline double multiv_gauss(double x_obs, double y_obs,
+inline double multiv_gauss(double x, double y,
                    double mu_x, double mu_y, double sig_x, double sig_y) {
   // calculate normalization term
   double gauss_norm;
@@ -261,8 +261,8 @@ inline double multiv_gauss(double x_obs, double y_obs,
 
   // calculate exponent
   double exponent;
-  exponent = (pow(x_obs - mu_x, 2) / (2 * pow(sig_x, 2)))
-               + (pow(y_obs - mu_y, 2) / (2 * pow(sig_y, 2)));
+  exponent = (pow(x - mu_x, 2) / (2 * pow(sig_x, 2)))
+               + (pow(y - mu_y, 2) / (2 * pow(sig_y, 2)));
     
   // calculate weight using normalization terms and exponent
   double value;
