@@ -20,6 +20,11 @@
 
 using std::string;
 using std::vector;
+using std::normal_distribution;
+using std::sin;
+using std::cos;
+
+std::default_random_engine gen;
 
 void ParticleFilter::init(double x, double y, double theta, double std[]) {
   /**
@@ -30,7 +35,25 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
    * NOTE: Consult particle_filter.h for more information about this method 
    *   (and others in this file).
    */
-  num_particles = 0;  // TODO: Set the number of particles
+  if(is_initialized){
+    return;
+  }
+
+  num_particles = 1000;  // TODO: Set the number of particles
+  
+  normal_distribution<double> dist_x(x, std[0]);
+  normal_distribution<double> dist_y(y, std[1]);
+  normal_distribution<double> dist_theta(theta, std[2]);
+
+  for(uint i = 0; i < num_particles; ++i){
+    Particle particle;
+    particle.id = i;
+    particle.x = dist_x(gen);
+    particle.y = dist_y(gen);
+    particle.theta = dist_theta(gen);
+    particle.weight = 1.0;
+    particles.push_back(particle);
+  }
 
 }
 
@@ -43,6 +66,33 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
    *  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
    *  http://www.cplusplus.com/reference/random/default_random_engine/
    */
+
+    double v_over_yawrate = velocity / yaw_rate;
+    double yawrate_dt = yaw_rate * delta_t;
+
+    for(Particle particle : particles){
+      // previous values of x, y, theta for particle
+      double x0 = particle.x;
+      double y0 = particle.y;
+      double theta0 = particle.theta;
+
+      // calcuate perfect values for x, y, theta by 
+      // applying the motion equations and assuming no noise
+      double pure_theta = theta0 + yawrate_dt;
+      double pure_x = x0 + v_over_yawrate * (sin(pure_theta) - sin(theta0));
+      double pure_y = y0 + v_over_yawrate * (cos(theta0) - cos(pure_theta));
+
+      // define normal distributions for adding noise arround 
+      // perfect values of x,y,theta
+      normal_distribution<double> dist_x(pure_x, std_pos[0]);
+      normal_distribution<double> dist_y(pure_y, std_pos[1]);
+      normal_distribution<double> dist_theta(pure_theta, std_pos[2]);
+
+      // set the new x,y,theat values for particle from noisy distributions
+      particle.x = dist_x(gen);
+      particle.y = dist_y(gen);
+      particle.theta = dist_theta(gen);
+    }
 
 }
 
