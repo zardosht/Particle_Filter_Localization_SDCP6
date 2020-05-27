@@ -227,8 +227,17 @@ void ParticleFilter::resample() {
    *   http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
    */
 
-
-
+  std::discrete_distribution<double> discrete_dist(weights.begin(), weights.end());
+  vector<Particle> new_particles(num_particles);
+  vector<double> new_weights(num_particles);
+  for (unsigned int i = 0; i < num_particles; ++i) {
+    unsigned int selected_index = discrete_dist(gen);
+    Particle selected_particle = particles[selected_index];
+    new_particles.push_back(selected_particle);
+    new_weights.push_back(selected_particle.weight);
+  }
+  particles = new_particles;
+  weights = new_weights;
 
 }
 
