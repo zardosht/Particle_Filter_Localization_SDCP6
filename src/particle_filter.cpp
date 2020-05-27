@@ -45,14 +45,16 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
   normal_distribution<double> dist_y(y, std[1]);
   normal_distribution<double> dist_theta(theta, std[2]);
 
-  for(uint i = 0; i < num_particles; ++i){
+  for(unsigned int i = 0; i < num_particles; ++i){
     Particle particle;
     particle.id = i;
     particle.x = dist_x(gen);
     particle.y = dist_y(gen);
     particle.theta = dist_theta(gen);
-    particle.weight = 1.0;
+    double weight = 1.0;
+    particle.weight = weight;
     particles.push_back(particle);
+    weights.push_back(weight);
   }
 
 }
@@ -70,7 +72,7 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
     double v_over_yawrate = velocity / yaw_rate;
     double yawrate_dt = yaw_rate * delta_t;
 
-    for(Particle particle : particles){
+    for (Particle particle : particles) {
       // previous values of x, y, theta for particle
       double x0 = particle.x;
       double y0 = particle.y;
@@ -106,6 +108,21 @@ void ParticleFilter::dataAssociation(vector<LandmarkObs> predicted,
    *   probably find it useful to implement this method and use it as a helper 
    *   during the updateWeights phase.
    */
+  for (LandmarkObs obs : observations) {
+    if (obs.id == -1) {
+      // find the nearest landmark to this observation
+      // and associate the id of the landmark with the observation
+      double min_dist = std::numeric_limits<double>::max();
+      for (LandmarkObs landmark : predicted) {
+        double current_dist = dist(landmark.x, landmark.y, obs.x, obs.y);
+        if (current_dist < min_dist) {
+          min_dist = current_dist;
+          obs.id = landmark.id;
+        }
+      }
+    }
+  }
+
 
 }
 
@@ -126,6 +143,80 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
    *   (look at equation 3.33) http://planning.cs.uiuc.edu/node99.html
    */
 
+   
+   // for each particle
+   for (unsigned int i = 0; i < particles.size(); ++i) {
+      Particle particle = particles[i];
+      double x_p = particle.x;
+      double y_p = particle.y;
+      double theta_p = particle.theta;
+
+      // find the landmarks near the predicted 
+      // postion of the particle
+      vector<Map::single_landmark_s> nearby_landmarks;
+      for (Map::single_landmark_s landmark : map_landmarks.landmark_list) {
+         if (dist(landmark.x_f, landmark.y_f, x_p, y_p) < sensor_range) {
+           nearby_landmarks.push_back(landmark);
+         }
+      }
+
+      // bring the observations to the map coordinates 
+      // for the particle
+      vector<LandmarkObs> transformed_observations; 
+      for (LandmarkObs obs : observations) {
+         LandmarkObs transformed_observation;
+         transformed_observation.id = -1;
+         transformed_observation.x = (cos(theta_p) * obs.x) + (-sin(theta_p) * obs.y) + x_p;
+         transformed_observation.y = (sin(theta_p) * obs.x) + (cos(theta_p) * obs.y) + y_p;
+         transformed_observations.push_back(transformed_observation);
+      }
+
+      // associated transformed observations with 
+      // the landmarks around particle to get a list
+      // of (landmark, observation) pairs. 
+      // Note 1: The function does not get a list of landmarks as input,
+      //         but a list of LandmarkObs objects. So, we have to consturct
+      //         this list from nearby landmarks. 
+      // Note 2: The function does not return list of pairs, 
+      //         but instead associates the id of the landmark 
+      //         with the observation. 
+      vector<LandmarkObs> nearby_landmark_obss;
+      for (Map::single_landmark_s landmark : nearby_landmarks) {
+        nearby_landmark_obss.push_back(
+          LandmarkObs{
+            landmark.id_i, 
+            landmark.x_f,
+            landmark.y_f
+          }
+        );
+      }
+      dataAssociation(nearby_landmark_obss, transformed_observations);
+
+
+      // Calcuate the wieght of particle by multiplying the 
+      // probabilities for each (landmark, observation) pair.
+      // Assuming Gaussian noise for the observations, this probability 
+      // tells us how likely is it that the particles sees this observation for this landmark. 
+      // The observation is transformed to the map coordinate _of the particls_.
+      // The landmark postion is also in map coordinate. 
+      // If the the observation is made at a correct position (i.e. the predicted position 
+      // of the particle is near the real position of the car that made the measurement), 
+      // then this observation is a value almost equal to the real position of its 
+      // associated landmark (the mean of the Gaussian). 
+      double weight_p = 1.0;
+      for (LandmarkObs trans_obs : transformed_observations) {
+         for (LandmarkObs landmark_obs : nearby_landmark_obss) {
+           if (trans_obs.id == landmark_obs.id) {
+             weight_p *= multiv_gauss(trans_obs.x, trans_obs.y, 
+                                      landmark_obs.x, landmark_obs.y, 
+                                      std_landmark[0], std_landmark[1]);
+           }
+         }
+      }
+      particle.weight = weight_p;
+      weights[i] = weight_p;
+   }
+
 }
 
 void ParticleFilter::resample() {
@@ -135,6 +226,9 @@ void ParticleFilter::resample() {
    * NOTE: You may find std::discrete_distribution helpful here.
    *   http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
    */
+
+
+
 
 }
 
