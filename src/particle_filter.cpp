@@ -125,22 +125,22 @@ void ParticleFilter::dataAssociation(Particle& particle,
   vector<int> associations;
   vector<double> sense_x;
   vector<double> sense_y;
-  for (LandmarkObs& obs : observations) {
-    if (obs.id == -1) {
+  for (unsigned int i = 0; i < observations.size(); ++i) {
+    if (observations[i].id == -1) {
       // find the nearest landmark to this observation
       // and associate the id of the landmark with the observation
       double min_dist = std::numeric_limits<double>::max();
-      for (unsigned int i = 0; i < predicted.size(); ++i) {
-        double current_dist = dist(predicted[i].x, predicted[i].y, obs.x, obs.y);
+      for (unsigned int j = 0; j < predicted.size(); ++j) {
+        double current_dist = dist(predicted[j].x, predicted[j].y, observations[i].x, observations[i].y);
         if (current_dist < min_dist) {
           min_dist = current_dist;
-          obs.id = predicted[i].id;
+          observations[i].id = predicted[j].id;
         }
       }
 
-      associations.push_back(obs.id);
-      sense_x.push_back(obs.x);
-      sense_y.push_back(obs.y);
+      associations.push_back(observations[i].id);
+      sense_x.push_back(observations[i].x);
+      sense_y.push_back(observations[i].y);
     }
   }
   SetAssociations(particle, associations, sense_x, sense_y);
@@ -193,12 +193,12 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
       // bring the observations to the map coordinates 
       // for the particle
       vector<LandmarkObs> transformed_observations; 
-      for (LandmarkObs obs : observations) {
-         LandmarkObs transformed_observation;
-         transformed_observation.id = -1;
-         transformed_observation.x = cos(theta_p) * obs.x -sin(theta_p) * obs.y + x_p;
-         transformed_observation.y = sin(theta_p) * obs.x + cos(theta_p) * obs.y + y_p;
-         transformed_observations.push_back(transformed_observation);
+      for (unsigned int j = 0; j < observations.size(); ++j) {
+         transformed_observations.push_back(LandmarkObs {
+           -1, 
+           cos(theta_p) * observations[j].x -sin(theta_p) * observations[j].y + x_p,
+           sin(theta_p) * observations[j].x + cos(theta_p) * observations[j].y + y_p
+         });
       }
 
       // associated transformed observations with 
