@@ -75,7 +75,7 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
    */
 
     
-    std::cout << "-------- Prediction " << std::endl;
+    std::cout << "\n-------- Prediction " << std::endl;
     for (unsigned int i = 0; i < num_particles; ++i) {
         // previous values of x, y, theta for particle
         double x0 = particles[i].x;
