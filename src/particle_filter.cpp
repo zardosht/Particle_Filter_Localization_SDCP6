@@ -178,14 +178,17 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
       //       but a list of LandmarkObs objects. So, we have to consturct
       //       this list from nearby landmarks. 
       vector<LandmarkObs> nearby_landmark_obss;
-      for (Map::single_landmark_s landmark : map_landmarks.landmark_list) {
-         if (dist(landmark.x_f, landmark.y_f, x_p, y_p) < sensor_range) {
-           nearby_landmark_obss.push_back(LandmarkObs{
-                                            landmark.id_i, 
-                                            landmark.x_f,
-                                            landmark.y_f 
-                                          });
-         }
+      for (unsigned int j = 0; j < map_landmarks.landmark_list.size(); ++j) {
+        double x_f = map_landmarks.landmark_list[j].x_f;
+        double y_f = map_landmarks.landmark_list[j].y_f;
+        int id = map_landmarks.landmark_list[j].id_i;
+        if (dist(x_f, y_f, x_p, y_p) < sensor_range) {
+          nearby_landmark_obss.push_back(LandmarkObs{
+                                          id, 
+                                          x_f,
+                                          y_f 
+                                        });
+        }
       }
 
       // bring the observations to the map coordinates 
