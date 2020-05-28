@@ -231,9 +231,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
                                       std_landmark[0], std_landmark[1]);
              if (mvg > 0.0) {
                 weight_p *= mvg;
-             } else {
-               std::cout << "Errors: mvg is 0.0 " << mvg << std::endl;
-             }
+             } 
            }
          }
       }
