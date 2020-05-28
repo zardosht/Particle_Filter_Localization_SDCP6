@@ -36,13 +36,13 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
    *   (and others in this file).
    */
 
-  // std::cout << "Initializtion." << std::endl;
+  std::cout << "-------- Initializtion --------" << std::endl;
 
   if(is_initialized){
     return;
   }
 
-  num_particles = 500;  // TODO: Set the number of particles
+  num_particles = 100;  // TODO: Set the number of particles
   
   normal_distribution<double> dist_x(x, std[0]);
   normal_distribution<double> dist_y(y, std[1]);
@@ -59,6 +59,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
     particles.push_back(particle);
     weights.push_back(weight);
   }
+  is_initialized = true;
 
 }
 
@@ -72,35 +73,41 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
    *  http://www.cplusplus.com/reference/random/default_random_engine/
    */
 
-    // std::cout << "Prediction" << std::endl;
+    std::cout << "-------- Prediction " << std::endl;
+    for (Particle& particle : particles) {
+        // previous values of x, y, theta for particle
+        double x0 = particle.x;
+        double y0 = particle.y;
+        double theta0 = particle.theta;
 
-    double v_over_yawrate = velocity / yaw_rate;
-    double yawrate_dt = yaw_rate * delta_t;
+        double perfect_theta = theta0;
+        double perfect_x = x0;
+        double perfect_y = y0;
 
-    for (Particle particle : particles) {
-      // previous values of x, y, theta for particle
-      double x0 = particle.x;
-      double y0 = particle.y;
-      double theta0 = particle.theta;
+        // calcuate perfect values for x, y, theta by 
+        // applying the motion equations and assuming no noise
+        if (yaw_rate != 0.0 ) {
+          double v_over_yawrate = velocity / yaw_rate;
+          double yawrate_dt = yaw_rate * delta_t;
+          perfect_theta = theta0 + yawrate_dt;
+          perfect_x = x0 + v_over_yawrate * (sin(perfect_theta) - sin(theta0));
+          perfect_y = y0 + v_over_yawrate * (cos(theta0) - cos(perfect_theta));
+        } else {
+          // Yaw rate is zero. Use linear motion equations.
+          perfect_x = x0 + velocity * delta_t * cos(theta0);
+          perfect_y = y0 + velocity * delta_t * sin(theta0);
+        }
+        // define normal distributions for adding noise arround 
+        // perfect values of x,y,theta
+        normal_distribution<double> dist_x(perfect_x, std_pos[0]);
+        normal_distribution<double> dist_y(perfect_y, std_pos[1]);
+        normal_distribution<double> dist_theta(perfect_theta, std_pos[2]);
 
-      // calcuate perfect values for x, y, theta by 
-      // applying the motion equations and assuming no noise
-      double pure_theta = theta0 + yawrate_dt;
-      double pure_x = x0 + v_over_yawrate * (sin(pure_theta) - sin(theta0));
-      double pure_y = y0 + v_over_yawrate * (cos(theta0) - cos(pure_theta));
-
-      // define normal distributions for adding noise arround 
-      // perfect values of x,y,theta
-      normal_distribution<double> dist_x(pure_x, std_pos[0]);
-      normal_distribution<double> dist_y(pure_y, std_pos[1]);
-      normal_distribution<double> dist_theta(pure_theta, std_pos[2]);
-
-      // set the new x,y,theat values for particle from noisy distributions
-      particle.x = dist_x(gen);
-      particle.y = dist_y(gen);
-      particle.theta = dist_theta(gen);
+        // set the new x,y,theat values for particle from noisy distributions
+        particle.x = dist_x(gen);
+        particle.y = dist_y(gen);
+        particle.theta = dist_theta(gen);
     }
-
 }
 
 void ParticleFilter::dataAssociation(Particle& particle, 
@@ -123,17 +130,17 @@ void ParticleFilter::dataAssociation(Particle& particle,
       // find the nearest landmark to this observation
       // and associate the id of the landmark with the observation
       double min_dist = std::numeric_limits<double>::max();
-      for (LandmarkObs landmark : predicted) {
-        double current_dist = dist(landmark.x, landmark.y, obs.x, obs.y);
+      for (unsigned int i = 0; i < predicted.size(); ++i) {
+        double current_dist = dist(predicted[i].x, predicted[i].y, obs.x, obs.y);
         if (current_dist < min_dist) {
           min_dist = current_dist;
-          obs.id = landmark.id;
+          obs.id = predicted[i].id;
         }
       }
 
-        associations.push_back(obs.id);
-        sense_x.push_back(obs.x);
-        sense_y.push_back(obs.y);
+      associations.push_back(obs.id);
+      sense_x.push_back(obs.x);
+      sense_y.push_back(obs.y);
     }
   }
   SetAssociations(particle, associations, sense_x, sense_y);
@@ -156,7 +163,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
    *   (look at equation 3.33) http://planning.cs.uiuc.edu/node99.html
    */
 
-   // std::cout << "Update" << std::endl;
+   std::cout << "-------- Update " << std::endl;
    
    // for each particle
    for (unsigned int i = 0; i < particles.size(); ++i) {
@@ -187,8 +194,8 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
       for (LandmarkObs obs : observations) {
          LandmarkObs transformed_observation;
          transformed_observation.id = -1;
-         transformed_observation.x = (cos(theta_p) * obs.x) + (-sin(theta_p) * obs.y) + x_p;
-         transformed_observation.y = (sin(theta_p) * obs.x) + (cos(theta_p) * obs.y) + y_p;
+         transformed_observation.x = cos(theta_p) * obs.x -sin(theta_p) * obs.y + x_p;
+         transformed_observation.y = sin(theta_p) * obs.x + cos(theta_p) * obs.y + y_p;
          transformed_observations.push_back(transformed_observation);
       }
 
@@ -212,12 +219,15 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
       // then this observation is a value almost equal to the real position of its 
       // associated landmark (the mean of the Gaussian). 
       double weight_p = 1.0;
-      for (LandmarkObs trans_obs : transformed_observations) {
-         for (LandmarkObs landmark_obs : nearby_landmark_obss) {
+      for (LandmarkObs& trans_obs : transformed_observations) {
+         for (LandmarkObs& landmark_obs : nearby_landmark_obss) {
            if (trans_obs.id == landmark_obs.id) {
-             weight_p *= multiv_gauss(trans_obs.x, trans_obs.y, 
+             double mvg = multiv_gauss(trans_obs.x, trans_obs.y, 
                                       landmark_obs.x, landmark_obs.y, 
                                       std_landmark[0], std_landmark[1]);
+             if (mvg > 0.0) {
+                weight_p *= mvg;
+             }
            }
          }
       }
@@ -235,7 +245,7 @@ void ParticleFilter::resample() {
    *   http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
    */
 
-  // std::cout << "Resample" << std::endl;
+  std::cout << "-------- Resample " << std::endl;
 
   std::discrete_distribution<int> discrete_dist(weights.begin(), weights.end());
   vector<Particle> new_particles(num_particles);
