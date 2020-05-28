@@ -44,16 +44,16 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 
   num_particles = 100;  // TODO: Set the number of particles
   
-  normal_distribution<double> dist_x(x, std[0]);
-  normal_distribution<double> dist_y(y, std[1]);
-  normal_distribution<double> dist_theta(theta, std[2]);
+  normal_distribution<double> dist_x(0, std[0]);
+  normal_distribution<double> dist_y(0, std[1]);
+  normal_distribution<double> dist_theta(0, std[2]);
 
   for(unsigned int i = 0; i < num_particles; ++i){
     Particle particle;
     particle.id = i;
-    particle.x = dist_x(gen);
-    particle.y = dist_y(gen);
-    particle.theta = dist_theta(gen);
+    particle.x = x + dist_x(gen);
+    particle.y = y + dist_y(gen);
+    particle.theta = theta + dist_theta(gen);
     double weight = 1.0;
     particle.weight = weight;
     particles.push_back(particle);
@@ -74,11 +74,11 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
    */
 
     std::cout << "-------- Prediction " << std::endl;
-    for (Particle& particle : particles) {
+    for (unsigned int i = 0; i < particles.size(); ++i) {
         // previous values of x, y, theta for particle
-        double x0 = particle.x;
-        double y0 = particle.y;
-        double theta0 = particle.theta;
+        double x0 = particles[i].x;
+        double y0 = particles[i].y;
+        double theta0 = particles[i].theta;
 
         double perfect_theta = theta0;
         double perfect_x = x0;
@@ -99,14 +99,14 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
         }
         // define normal distributions for adding noise arround 
         // perfect values of x,y,theta
-        normal_distribution<double> dist_x(perfect_x, std_pos[0]);
-        normal_distribution<double> dist_y(perfect_y, std_pos[1]);
-        normal_distribution<double> dist_theta(perfect_theta, std_pos[2]);
+        normal_distribution<double> dist_x(0, std_pos[0]);
+        normal_distribution<double> dist_y(0, std_pos[1]);
+        normal_distribution<double> dist_theta(0, std_pos[2]);
 
         // set the new x,y,theat values for particle from noisy distributions
-        particle.x = dist_x(gen);
-        particle.y = dist_y(gen);
-        particle.theta = dist_theta(gen);
+        particles[i].x = perfect_x + dist_x(gen);
+        particles[i].y = perfect_y + dist_y(gen);
+        particles[i].theta = perfect_theta + dist_theta(gen);
     }
 }
 
@@ -167,10 +167,9 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
    
    // for each particle
    for (unsigned int i = 0; i < particles.size(); ++i) {
-      Particle& particle = particles[i];
-      double x_p = particle.x;
-      double y_p = particle.y;
-      double theta_p = particle.theta;
+      double x_p = particles[i].x;
+      double y_p = particles[i].y;
+      double theta_p = particles[i].theta;
 
       // find the landmarks near the predicted 
       // postion of the particle
@@ -208,7 +207,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
       // Note: The function does not return list of pairs, 
       //       but instead associates the id of the landmark 
       //       with the observation. 
-      dataAssociation(particle, nearby_landmark_obss, transformed_observations);
+      dataAssociation(particles[i], nearby_landmark_obss, transformed_observations);
 
 
       // Calcuate the wieght of particle by multiplying the 
@@ -222,19 +221,21 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
       // then this observation is a value almost equal to the real position of its 
       // associated landmark (the mean of the Gaussian). 
       double weight_p = 1.0;
-      for (LandmarkObs& trans_obs : transformed_observations) {
-         for (LandmarkObs& landmark_obs : nearby_landmark_obss) {
-           if (trans_obs.id == landmark_obs.id) {
-             double mvg = multiv_gauss(trans_obs.x, trans_obs.y, 
-                                      landmark_obs.x, landmark_obs.y, 
+      for (unsigned int j = 0; j < transformed_observations.size(); ++j) {
+         for (unsigned int k = 0; k < nearby_landmark_obss.size(); ++k) {
+           if (transformed_observations[j].id == nearby_landmark_obss[k].id) {
+             double mvg = multiv_gauss(transformed_observations[j].x, transformed_observations[j].y, 
+                                      nearby_landmark_obss[k].x, nearby_landmark_obss[k].y, 
                                       std_landmark[0], std_landmark[1]);
              if (mvg > 0.0) {
                 weight_p *= mvg;
+             } else {
+               std::cout << "Errors: mvg is 0.0 " << mvg << std::endl;
              }
            }
          }
       }
-      particle.weight = weight_p;
+      particles[i].weight = weight_p;
       weights[i] = weight_p;
    }
 
