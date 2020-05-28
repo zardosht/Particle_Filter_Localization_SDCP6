@@ -35,11 +35,14 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
    * NOTE: Consult particle_filter.h for more information about this method 
    *   (and others in this file).
    */
+
+  // std::cout << "Initializtion." << std::endl;
+
   if(is_initialized){
     return;
   }
 
-  num_particles = 1000;  // TODO: Set the number of particles
+  num_particles = 500;  // TODO: Set the number of particles
   
   normal_distribution<double> dist_x(x, std[0]);
   normal_distribution<double> dist_y(y, std[1]);
@@ -68,6 +71,8 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
    *  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
    *  http://www.cplusplus.com/reference/random/default_random_engine/
    */
+
+    // std::cout << "Prediction" << std::endl;
 
     double v_over_yawrate = velocity / yaw_rate;
     double yawrate_dt = yaw_rate * delta_t;
@@ -98,7 +103,8 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
 
 }
 
-void ParticleFilter::dataAssociation(vector<LandmarkObs> predicted, 
+void ParticleFilter::dataAssociation(Particle& particle, 
+                                     vector<LandmarkObs> predicted, 
                                      vector<LandmarkObs>& observations) {
   /**
    * TODO: Find the predicted measurement that is closest to each 
@@ -108,7 +114,11 @@ void ParticleFilter::dataAssociation(vector<LandmarkObs> predicted,
    *   probably find it useful to implement this method and use it as a helper 
    *   during the updateWeights phase.
    */
-  for (LandmarkObs obs : observations) {
+
+  vector<int> associations;
+  vector<double> sense_x;
+  vector<double> sense_y;
+  for (LandmarkObs& obs : observations) {
     if (obs.id == -1) {
       // find the nearest landmark to this observation
       // and associate the id of the landmark with the observation
@@ -120,10 +130,13 @@ void ParticleFilter::dataAssociation(vector<LandmarkObs> predicted,
           obs.id = landmark.id;
         }
       }
+
+        associations.push_back(obs.id);
+        sense_x.push_back(obs.x);
+        sense_y.push_back(obs.y);
     }
   }
-
-
+  SetAssociations(particle, associations, sense_x, sense_y);
 }
 
 void ParticleFilter::updateWeights(double sensor_range, double std_landmark[], 
@@ -143,20 +156,28 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
    *   (look at equation 3.33) http://planning.cs.uiuc.edu/node99.html
    */
 
+   // std::cout << "Update" << std::endl;
    
    // for each particle
    for (unsigned int i = 0; i < particles.size(); ++i) {
-      Particle particle = particles[i];
+      Particle& particle = particles[i];
       double x_p = particle.x;
       double y_p = particle.y;
       double theta_p = particle.theta;
 
       // find the landmarks near the predicted 
       // postion of the particle
-      vector<Map::single_landmark_s> nearby_landmarks;
+      // Note: The dataAssociation() function does not get a list of landmarks as input,
+      //       but a list of LandmarkObs objects. So, we have to consturct
+      //       this list from nearby landmarks. 
+      vector<LandmarkObs> nearby_landmark_obss;
       for (Map::single_landmark_s landmark : map_landmarks.landmark_list) {
          if (dist(landmark.x_f, landmark.y_f, x_p, y_p) < sensor_range) {
-           nearby_landmarks.push_back(landmark);
+           nearby_landmark_obss.push_back(LandmarkObs{
+                                            landmark.id_i, 
+                                            landmark.x_f,
+                                            landmark.y_f 
+                                          });
          }
       }
 
@@ -174,34 +195,10 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
       // associated transformed observations with 
       // the landmarks around particle to get a list
       // of (landmark, observation) pairs. 
-      // Note 1: The function does not get a list of landmarks as input,
-      //         but a list of LandmarkObs objects. So, we have to consturct
-      //         this list from nearby landmarks. 
-      // Note 2: The function does not return list of pairs, 
-      //         but instead associates the id of the landmark 
-      //         with the observation. 
-      vector<LandmarkObs> nearby_landmark_obss;
-      for (Map::single_landmark_s landmark : nearby_landmarks) {
-        nearby_landmark_obss.push_back(
-          LandmarkObs{
-            landmark.id_i, 
-            landmark.x_f,
-            landmark.y_f
-          }
-        );
-      }
-      dataAssociation(nearby_landmark_obss, transformed_observations);
-      
-      // set associations for particle for debugging
-      vector<int> associations;
-      vector<double> sense_x;
-      vector<double> sense_y;
-      for (LandmarkObs obs : transformed_observations) {
-        associations.push_back(obs.id);
-        sense_x.push_back(obs.x);
-        sense_y.push_back(obs.y);
-      }
-      SetAssociations(particle, associations, sense_x, sense_y);
+      // Note: The function does not return list of pairs, 
+      //       but instead associates the id of the landmark 
+      //       with the observation. 
+      dataAssociation(particle, nearby_landmark_obss, transformed_observations);
 
 
       // Calcuate the wieght of particle by multiplying the 
@@ -237,6 +234,8 @@ void ParticleFilter::resample() {
    * NOTE: You may find std::discrete_distribution helpful here.
    *   http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
    */
+
+  // std::cout << "Resample" << std::endl;
 
   std::discrete_distribution<int> discrete_dist(weights.begin(), weights.end());
   vector<Particle> new_particles(num_particles);

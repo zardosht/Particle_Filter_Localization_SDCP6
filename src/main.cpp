@@ -137,9 +137,17 @@ int main() {
 
           // Optional message data used for debugging particle's sensing 
           //   and associations
-          msgJson["best_particle_associations"] = pf.getAssociations(best_particle);
-          msgJson["best_particle_sense_x"] = pf.getSenseCoord(best_particle, "X");
-          msgJson["best_particle_sense_y"] = pf.getSenseCoord(best_particle, "Y");
+          std::string associations = pf.getAssociations(best_particle);
+          // std::cout << "Best particle's associations: " << associations << std::endl;
+          msgJson["best_particle_associations"] = associations;
+
+          std::string sense_x = pf.getSenseCoord(best_particle, "X");
+          // std::cout << "Best particle's sense_x: " << sense_x << std::endl;
+          msgJson["best_particle_sense_x"] = sense_x;
+
+          std::string sense_y = pf.getSenseCoord(best_particle, "Y");
+          // std::cout << "Best particle's sense_y: " << sense_y << std::endl;
+          msgJson["best_particle_sense_y"] = sense_y;
 
           auto msg = "42[\"best_particle\"," + msgJson.dump() + "]";
           // std::cout << msg << std::endl;
