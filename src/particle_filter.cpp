@@ -191,6 +191,17 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
         );
       }
       dataAssociation(nearby_landmark_obss, transformed_observations);
+      
+      // set associations for particle for debugging
+      vector<int> associations;
+      vector<double> sense_x;
+      vector<double> sense_y;
+      for (LandmarkObs obs : transformed_observations) {
+        associations.push_back(obs.id);
+        sense_x.push_back(obs.x);
+        sense_y.push_back(obs.y);
+      }
+      SetAssociations(particle, associations, sense_x, sense_y);
 
 
       // Calcuate the wieght of particle by multiplying the 
@@ -227,7 +238,7 @@ void ParticleFilter::resample() {
    *   http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
    */
 
-  std::discrete_distribution<double> discrete_dist(weights.begin(), weights.end());
+  std::discrete_distribution<int> discrete_dist(weights.begin(), weights.end());
   vector<Particle> new_particles(num_particles);
   vector<double> new_weights(num_particles);
   for (unsigned int i = 0; i < num_particles; ++i) {
