@@ -43,7 +43,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
     return;
   }
 
-  num_particles = 100;  // TODO: Set the number of particles
+  num_particles = 50;  // TODO: Set the number of particles
   
   normal_distribution<double> dist_x(0, std[0]);
   normal_distribution<double> dist_y(0, std[1]);
@@ -76,9 +76,6 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
 
     
     std::cout << "-------- Prediction " << std::endl;
-    assert(num_particles == particles.size());
-    assert(num_particles == weights.size());
-
     for (unsigned int i = 0; i < num_particles; ++i) {
         // previous values of x, y, theta for particle
         double x0 = particles[i].x;
@@ -169,10 +166,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
    */
 
    std::cout << "-------- Update " << std::endl;
-   assert(num_particles == particles.size());
-   assert(num_particles == weights.size());
-
-
+ 
    // for each particle
    for (unsigned int i = 0; i < num_particles; ++i) {
       double x_p = particles[i].x;
@@ -258,17 +252,14 @@ void ParticleFilter::resample() {
    */
 
   std::cout << "-------- Resample " << std::endl;
-  assert(num_particles == particles.size());
-  assert(num_particles == weights.size());
-
   std::discrete_distribution<int> discrete_dist(weights.begin(), weights.end());
   vector<Particle> new_particles(num_particles);
   vector<double> new_weights(num_particles);
   for (unsigned int i = 0; i < num_particles; ++i) {
     unsigned int selected_index = discrete_dist(gen);
     Particle selected_particle = particles[selected_index];
-    new_particles.push_back(selected_particle);
-    new_weights.push_back(selected_particle.weight);
+    new_particles[i] = selected_particle;
+    new_weights[i] = selected_particle.weight;
   }
   particles = new_particles;
   weights = new_weights;
