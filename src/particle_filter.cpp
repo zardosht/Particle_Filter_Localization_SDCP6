@@ -15,6 +15,7 @@
 #include <random>
 #include <string>
 #include <vector>
+#include <assert.h>
 
 #include "helper_functions.h"
 
@@ -73,8 +74,12 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
    *  http://www.cplusplus.com/reference/random/default_random_engine/
    */
 
+    
     std::cout << "-------- Prediction " << std::endl;
-    for (unsigned int i = 0; i < particles.size(); ++i) {
+    assert(num_particles == particles.size());
+    assert(num_particles == weights.size());
+
+    for (unsigned int i = 0; i < num_particles; ++i) {
         // previous values of x, y, theta for particle
         double x0 = particles[i].x;
         double y0 = particles[i].y;
@@ -164,9 +169,12 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
    */
 
    std::cout << "-------- Update " << std::endl;
-   
+   assert(num_particles == particles.size());
+   assert(num_particles == weights.size());
+
+
    // for each particle
-   for (unsigned int i = 0; i < particles.size(); ++i) {
+   for (unsigned int i = 0; i < num_particles; ++i) {
       double x_p = particles[i].x;
       double y_p = particles[i].y;
       double theta_p = particles[i].theta;
@@ -250,6 +258,8 @@ void ParticleFilter::resample() {
    */
 
   std::cout << "-------- Resample " << std::endl;
+  assert(num_particles == particles.size());
+  assert(num_particles == weights.size());
 
   std::discrete_distribution<int> discrete_dist(weights.begin(), weights.end());
   vector<Particle> new_particles(num_particles);
